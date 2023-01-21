@@ -38,45 +38,35 @@ Init ==
 
 NodeFinishedWork(node) ==
     /\ NodeWorking' = [NodeWorking EXCEPT ![node] = FALSE]
-    /\ UNCHANGED Network
-\*    /\ UNCHANGED NodeWorking : Very important - if this is in, a warning is issued and this predicate is ALWAYS FALSE
-    /\ UNCHANGED TerminationDetected
-    /\ UNCHANGED TokenOwner
+    /\ UNCHANGED <<Network, TerminationDetected, TokenOwner>>
 
 NodePassesToken(node) == 
     /\ TokenOwner = node
     /\ NodeWorking[node] = FALSE
-    /\ UNCHANGED NodeWorking
-    /\ UNCHANGED Network
-    /\ IF TokenOwner = NumberOfNodes
-       THEN 
-        /\ TerminationDetected' = TRUE
+    /\ UNCHANGED << NodeWorking, Network, TerminationDetected >>
+    /\ IF TokenOwner = NumberOfNodes THEN
         /\ UNCHANGED TokenOwner
        ELSE 
         /\ TokenOwner' = TokenOwner + 1
-        /\ UNCHANGED TerminationDetected
 
 DetectTermination == 
-    /\ TerminationDetected
-    /\ UNCHANGED TokenOwner
-    /\ UNCHANGED NodeWorking
-    /\ UNCHANGED TerminationDetected
+    /\ TokenOwner = NumberOfNodes
+    /\ NodeWorking[TokenOwner] = FALSE
+    /\ TerminationDetected' = TRUE
+    /\ UNCHANGED << TokenOwner, NodeWorking, Network>>
 
 SendMessage(sourceNode) ==
     \E destinationNode \in Nodes:
     /\ NodeWorking[sourceNode] = TRUE
     /\ Network' = [Network EXCEPT ![destinationNode] = Network[destinationNode] + 1]
-    /\ UNCHANGED TerminationDetected
-    /\ UNCHANGED NodeWorking
-    /\ UNCHANGED TokenOwner
+    /\ UNCHANGED << TerminationDetected, NodeWorking, TokenOwner>>
 
 NodeReceives(recvNode) ==
     /\ Network[recvNode] > 0
     /\ NodeWorking[recvNode] = FALSE
     /\ Network' = [Network EXCEPT ![recvNode] = Network[recvNode] - 1]
     /\ NodeWorking' = [NodeWorking EXCEPT ![recvNode] = TRUE]
-    /\ UNCHANGED TerminationDetected
-    /\ UNCHANGED TokenOwner
+    /\ UNCHANGED << TerminationDetected, TokenOwner>>
 
 Next == 
     \E node \in Nodes :
@@ -84,6 +74,7 @@ Next ==
     \/ SendMessage(node)
     \/ NodeReceives(node)
     \/ NodePassesToken(node)
+    \/ DetectTermination
 
 NetworkIsFinite ==
     \A node \in Nodes : Network[node] <= 3
